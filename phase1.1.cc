@@ -8,6 +8,8 @@
 #include "ns3/wifi-module.h"
 #include "ns3/mesh-module.h"
 #include "ns3/mesh-helper.h"
+#include "ns3/dsdv-module.h"
+#include "ns3/simple-wireless-tdma-module.h"
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -15,26 +17,10 @@
 
 using namespace ns3;
 
-
 int 
 main (int argc, char *argv[])
 {
 	bool verbose = true;
-
-	double    m_randomStart = 0.1; 			///< random start
-	// double    m_totalTime = 10.0;
-	uint32_t  m_nIfaces = 1; 				///< number interfaces
-	bool      m_chan = true; 				///< channel
-	bool      m_pcap = false; 				///< PCAP
-	std::string m_stack = "ns3::Dot11sStack"; 				///< stack
-	std::string m_root = "ff:ff:ff:ff:ff:ff"; 				///< root
-
-	// Time::SetResolution (Time::NS);
-	CommandLine cmd;
-	// cmd.AddValue ("nCsma", "Number of \"extra\" nodes/devices", nCsma);
-	cmd.AddValue ("verbose", "Tell echo applications to log if true", verbose);
-
-	cmd.Parse (argc,argv);
 
 	if (verbose)
 	{
@@ -88,46 +74,31 @@ main (int argc, char *argv[])
 	pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
 	pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));		// for time-being delay is hard-coded
 
+	NetDeviceContainer nodes_to_CH_devices;
+	Config::SetDefault ("ns3::SimpleWirelessChannel::MaxRange", DoubleValue (10.0));
+	TdmaHelper tdma = TdmaHelper (mesh.GetN (),mesh.GetN ()); // in this case selected, numSlots = nodes
+	TdmaControllerHelper controller;
+	controller.Set ("SlotTime", TimeValue (MicroSeconds (1100)));
+	controller.Set ("GaurdTime", TimeValue (MicroSeconds (100)));
+	controller.Set ("InterFrameTime", TimeValue (MicroSeconds (0)));
+	tdma.SetTdmaControllerHelper (controller);
+	nodes_to_CH_devices = tdma.Install (mesh);
 
-	//Mesh
-	// defination for channel for mesh left
-	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
-	YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
-	wifiPhy.SetChannel (wifiChannel.Create ());
-
-	MeshHelper meshhelper = MeshHelper::Default ();
-	if (!Mac48Address (m_root.c_str ()).IsBroadcast ())
-	{
-		meshhelper.SetStackInstaller (m_stack, "Root", Mac48AddressValue (Mac48Address (m_root.c_str ())));
-	}
-	else
-	{
-      //If root is not set, we do not use "Root" attribute, because it
-      //is specified only for 11s
-		meshhelper.SetStackInstaller (m_stack);
-	}
-	if (m_chan)
-	{
-		meshhelper.SetSpreadInterfaceChannels (MeshHelper::SPREAD_CHANNELS);
-	}
-	else
-	{
-		meshhelper.SetSpreadInterfaceChannels (MeshHelper::ZERO_CHANNEL);
-	}
-	meshhelper.SetMacType ("RandomStart", TimeValue (Seconds (m_randomStart)));  // Set number of interfaces - default is single-interface mesh point
-	meshhelper.SetNumberOfInterfaces (m_nIfaces);	
-								 // Install protocols and return container if MeshPointDevices
-	NetDeviceContainer nodes_to_CH_devices = meshhelper.Install (wifiPhy, mesh);
-
-	if (m_pcap)
-		wifiPhy.EnablePcapAll (std::string ("mp-"));
-
+	  // AsciiTraceHelper ascii;
+	  // Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream (tr_name + ".tr");
+	  // tdma.EnableAsciiAll (stream);
 
 	// installation of devices on mesh left
 	NetDeviceContainer base_to_CH_devices;
 	base_to_CH_devices = pointToPoint.Install (base_cluster);
 
+
+	DsdvHelper dsdv;
+	dsdv.Set ("PeriodicUpdateInterval", TimeValue (Seconds (15)));
+	dsdv.Set ("SettlingTime", TimeValue (Seconds (6)));
+
 	InternetStackHelper stack;
+	stack.SetRoutingHelper (dsdv);
 	stack.Install (base_cluster.Get(0));
 	stack.Install (mesh);
 
@@ -140,36 +111,15 @@ main (int argc, char *argv[])
 	Ipv4InterfaceContainer base2CHInterfaces;
 	base2CHInterfaces = address.Assign (base_to_CH_devices);
 
-	
 
-	
-	uint32_t rec_pkts = 0;
-	/*Nodes to Cluster Head*/
-
-	// Node 0
-
-	uint32_t pkt_tosend = 5;
-
-	// Port no. given to cluster Head
-	UdpEchoServerHelper echoServer1 (3589);
-
-	ApplicationContainer serverApps = echoServer1.Install (mesh.Get (grid_nodes-1));
-	serverApps.Start (Seconds (1.0));
-	serverApps.Stop (Seconds (5.0));
-	
-	UdpEchoClientHelper echoClient1 (nodes2CHInterfaces.GetAddress (0), 3589);
-	echoClient1.SetAttribute ("MaxPackets", UintegerValue (pkt_tosend));
-	echoClient1.SetAttribute ("Interval", TimeValue (Seconds(1.0)));
-	echoClient1.SetAttribute ("PacketSize", UintegerValue (1024));
-
-	ApplicationContainer clientApps = echoClient1.Install (mesh.Get (0));
-	clientApps.Start (Seconds (2.0));
-	clientApps.Stop (Seconds (5.0));
-
-	rec_pkts += pkt_tosend;
+	// Nodes to cllusterhead communication
+	OnOffHelper onoff1 ("ns3::UdpSocketFactory", Address (InetSocketAddress (nodes2CHInterfaces.GetAddress (8), 6000))); //clusterhead as sink
+    onoff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
+    onoff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
 
 
-	// Port no. given to base station
+
+
 	// Cluster Head to Base Station
 	UdpEchoServerHelper echoServer (4539);
 
@@ -194,7 +144,7 @@ main (int argc, char *argv[])
 	}
 
 	anim.SetConstantPosition(base_cluster.Get(1),400.0,400.0);
-	
+
 
 
 	Simulator::Run ();

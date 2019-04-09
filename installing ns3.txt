@@ -1,0 +1,66 @@
+once ubuntu is installed run following command opening your terminal(ctrl+alt+T).
+
+To install prerequisites-
+
+sudo apt-get install gcc g++ python && sudo apt-get install gcc g++ python && sudo apt-get install mercurial python-setuptools git && sudo apt-get install qt5-default && sudo apt-get install python-pygraphviz python-kiwi python-pygoocanvas libgoocanvas-dev ipython && sudo apt-get install openmpi-bin openmpi-common openmpi-doc libopenmpi-dev && sudo apt-get install autoconf cvs bzr unrar && sudo apt-get install gdb valgrind && sudo apt-get install uncrustify && sudo apt-get install doxygen graphviz imagemagick && sudo apt-get install texlive texlive-extra-utils texlive-latex-extra texlive-font-utils texlive-lang-portuguese dvipng && sudo apt-get install python-sphinx dia && sudo apt-get install gsl-bin libgsl2 libgsl-dev && sudo apt-get install flex bison libfl-dev && sudo apt-get install tcpdump && sudo apt-get install sqlite sqlite3 libsqlite3-dev && sudo apt-get install libxml2 libxml2-dev && sudo apt-get install cmake libc6-dev libc6-dev-i386 libclang-dev && sudo  pip install cxxfilt && sudo apt-get install libgtk2.0-0 libgtk2.0-dev && sudo apt-get install vtun lxc && sudo apt-get install libboost-signals-dev libboost-filesystem-dev
+
+
+
+ (now make sure you have not run sudo su to be superuser)
+
+Downloading NS-3(ns-3 version 3.27)
+
+   cd  
+
+   mkdir ns3
+
+   cd ns3
+
+   wget https://www.nsnam.org/release/ns-allinone-3.27.tar.bz2
+
+   tar xjf ns-allinone-3.27.tar.bz2
+
+   cd ns-allinone-3.27/
+
+   ls
+
+ 
+
+ 
+
+Then you can find build.py along with other files.
+
+Then to build the examples in ns-3 run 
+ 
+   ./build.py --enable-examples --enable-tests
+ 
+
+If the build is successful then it will give output
+
+ "Build finished successfully".(clap for yourself)
+
+ 
+
+ Now run the following command to configure with waf(build tool)
+
+ 
+
+ ./waf -d debug --enable-examples --enable-tests configure
+
+To build with waf(optional)
+
+ 
+
+./waf
+
+ 
+
+To test everything allright
+
+ 
+
+./test.py
+
+ 
+
+If the tests are ok the installation is done. :)
